@@ -1,36 +1,87 @@
 # Loop Engineering
 
-Reliable agent feedback loops with explicit evidence, budgets, recovery, and stop conditions.
+Loop Engineering is a research and learning repository about reliable agent feedback loops. It
+serves people learning agent systems and developers testing loop policies at the frontier.
 
-Loop Engineering treats persistence as an engineering object. A model call is not a loop, and
-repetition is not reliability. A useful loop must observe the current task-local state, produce a
-candidate action, verify it against named evidence, recover from a failed attempt, and stop for a
-machine-readable reason before it consumes unbounded resources.
+The code is an executable research and reference prototype. It makes the ideas inspectable and
+testable; it is not presented as a production agent framework.
 
-This repository is the executable reference for that idea in the broader Agent Engineering Stack.
-It contains a small synchronous Python kernel, an OpenAI Responses API actor, deterministic actors
-for evaluation, composable validators, hard budgets, trace events, and a CLI.
+> **Status:** experimental foundation. The synchronous reference path works and is tested offline.
+> Roadmap items describe planned research, not shipped features.
 
-> **Status:** experimental foundation. The reference path works and is tested offline; the roadmap
-> directories describe planned research rather than shipped features.
+## Why study the loop?
+
+A model call produces a candidate. A loop decides what the model sees next, what counts as progress,
+how failure changes the next attempt, and when further work is no longer justified.
+
+Repetition alone is not reliability. A bounded agent loop needs named evidence, explicit resource
+limits, recovery policy, and a machine-readable reason for stopping.
+
+This repository studies one compact transition system:
+
+```text
+observe -> act -> verify -> recover or stop
+```
+
+Each transition is a replaceable protocol. Each run returns its output, validator evidence, budget
+usage, terminal reason, and event trace.
+
+## Who this is for
+
+- **Agent newcomers** who want a small system they can read before approaching orchestration
+  frameworks.
+- **Agent builders** who need explicit loop contracts instead of an unbounded `while` around model
+  calls.
+- **Frontier developers and researchers** who want to test recovery, verification, budgeting, and
+  termination policies against reproducible traces.
+
+Prior agent-framework experience is not required. The implementation assumes basic Python and
+command-line familiarity.
+
+## Choose a path
+
+### Learn
+
+Start with the five [concept invariants](docs/concepts/README.md), then run the deterministic example
+in [Quickstart](#quickstart). Read its JSON trace alongside `LoopEngine.run` to connect terms to state
+transitions.
+
+Next, change a scripted action or required marker and predict the terminal reason before rerunning
+the command. The tests provide short examples of boundary behavior.
+
+### Build
+
+Use the protocols in `ports.py` to supply an observer, actor, verifier, recovery strategy, or exit
+condition. Keep external model and tool clients at the edge of the engine.
+
+Begin with deterministic actors and validators. Add live OpenAI calls only after the local evidence
+and budget contract behaves as intended.
+
+### Research
+
+Choose an [open research question](#open-research-questions), state a falsifiable hypothesis, and put
+disposable work under `experiments/`. Record budgets, policy variants, model settings, and raw traces.
+
+Move reusable tasks and metrics into `evals/`. Promote behavior into `src/` only when its contract and
+regression tests are clear.
 
 ## Scope
 
-This repository owns the mechanics and semantics of a single bounded feedback loop:
+This repository owns the mechanics and semantics of one bounded feedback loop:
 
-- the `observe -> act -> verify -> recover/stop` state transition;
-- explicit iteration, action, and recovery budgets;
-- evidence-producing validators instead of model self-confidence;
+- the `observe -> act -> verify -> recover/stop` transition;
+- iteration, action, and recovery budgets;
+- evidence-producing validators rather than model self-confidence;
 - pluggable observers, actors, verifiers, recovery strategies, and exit conditions;
-- a terminal result with a reason, final evidence, resource usage, and event trace;
-- one production-facing OpenAI Responses API adapter and one deterministic test adapter.
+- terminal results with evidence, resource usage, trace events, and a stop reason;
+- an OpenAI Responses API actor and a deterministic actor for learning and evaluation.
 
-The current implementation is deliberately small enough to inspect in one sitting. Its purpose is
-to make loop policy testable before adding concurrency, persistence, tools, or orchestration.
+The implementation stays small enough to inspect in one sitting. Its job is to make loop policy
+executable before adding concurrency, persistence, tools, or orchestration.
 
 ## Non-goals
 
-Loop Engineering does **not** currently attempt to provide:
+Loop Engineering does **not** currently provide:
 
 - prompt libraries or prompt optimization;
 - retrieval, memory, or context-window management;
@@ -38,22 +89,22 @@ Loop Engineering does **not** currently attempt to provide:
 - multi-agent routing or workflow graph execution;
 - dynamic role creation or topology mutation;
 - automatic inference of human values, authority, or success criteria;
-- a claim that model-generated output is correct without external validation.
+- proof that arbitrary model output is correct without external validation.
 
-Those concerns belong to adjacent layers. Keeping the boundary visible prevents an impressive demo
-from hiding missing evidence or unbounded execution.
+Those concerns belong to adjacent layers. A clear boundary keeps an impressive demo from hiding
+missing evidence, authority, or resource limits.
 
 ## Boundary in the seven-layer stack
 
 | Layer | Engineering object | Relationship to this repository |
 | --- | --- | --- |
-| Prompt Engineering | How an instruction shapes model behavior | Supplies an actor's instruction; does not own loop control. |
-| Context Engineering | What an agent sees, remembers, retrieves, and forgets | Supplies observations; this loop only passes task-local state. |
-| Harness Engineering | Tools, permissions, execution, recovery infrastructure, and observability | Hosts the loop and handles runtime/tool failures outside application verification. |
+| Prompt Engineering | How instructions shape model behavior | Supplies actor instructions; does not own loop control. |
+| Context Engineering | What an agent sees, remembers, retrieves, and forgets | Supplies observations; this prototype passes task-local state. |
+| Harness Engineering | Tools, permissions, execution, runtime recovery, and observability | Hosts loops and owns infrastructure failures outside verification. |
 | **Loop Engineering** | How one agent iterates, proves progress, recovers, and stops | **Owned here.** |
-| Graph Engineering | How multiple loops coordinate through state, routing, and failure boundaries | Composes loop instances as nodes; does not replace their local contracts. |
-| Emergence Engineering | How roles and topology adapt under bounded rules | May create or tune loops, but must preserve their budgets and evidence contracts. |
-| Intent Engineering | How goals, constraints, trade-offs, authority, and success evidence become executable | Compiles the objective, validators, budgets, and allowed recovery policy. |
+| Graph Engineering | How multiple loops coordinate through state and routing | Composes loops as nodes without replacing their local contracts. |
+| Emergence Engineering | How roles and topology adapt under bounded rules | May tune loops but must preserve their budgets and evidence contracts. |
+| Intent Engineering | How goals, constraints, authority, and success evidence become executable | Compiles objectives, validators, budgets, and allowed recovery policy. |
 
 ## Quickstart
 
@@ -72,10 +123,10 @@ uv run loop-engineering run \
   --require READY
 ```
 
-The actor calls `client.responses.create(...)` through `openai-python`. Verification remains local
-and deterministic: in this example the candidate must be non-empty and contain `READY`.
+The actor calls `client.responses.create(...)` through `openai-python`. Verification stays local and
+deterministic: this candidate must be non-empty and contain `READY`.
 
-Run the complete loop without an API key or network request:
+Run the same feedback structure without a key or network request:
 
 ```bash
 uv run loop-engineering run \
@@ -86,38 +137,38 @@ uv run loop-engineering run \
   --json
 ```
 
-The first candidate fails verification, feedback becomes recovery guidance, the second candidate
-passes, and the JSON trace ends with `reason: "verified"`.
+The first candidate fails. Its evidence becomes recovery guidance, the second candidate passes, and
+the trace ends with `reason: "verified"`.
 
-Useful development commands:
+Run the repository checks:
 
 ```bash
 uv run ruff format .
 uv run ruff check .
 uv run pytest
+uv build
 ```
 
 ## Configuration
 
-Configuration is loaded by `pydantic-settings` from environment variables and an optional local
-`.env` file. Process environment variables take precedence. `.env` is ignored by Git.
+`pydantic-settings` loads process variables and an optional local `.env` file. Process variables take
+precedence, and `.env` is ignored by Git.
 
 | Variable | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | For live calls | none | Credential passed to the OpenAI client. |
 | `OPENAI_MODEL` | No | `gpt-5.6` | Model passed to the Responses API. |
-| `OPENAI_BASEURL` | No | none | Custom base URL for an OpenAI-compatible Responses API. |
+| `OPENAI_BASEURL` | No | none | Base URL for an OpenAI-compatible Responses API. |
 
-The base URL variable is spelled exactly `OPENAI_BASEURL` (without an underscore before `URL`). An
-unset, empty, or whitespace-only value is normalized to `None`, so the OpenAI SDK keeps its default
-endpoint. To route live calls through a compatible gateway, set for example:
+The custom endpoint variable is spelled exactly `OPENAI_BASEURL`. An unset, empty, or whitespace-only
+value becomes `None`, so the OpenAI SDK keeps its default endpoint.
 
 ```dotenv
 OPENAI_BASEURL=https://gateway.example.com/v1
 ```
 
-The client appends the Responses API resource path to this base URL. The configured service must
-therefore implement the OpenAI Responses API contract used by `openai-python`.
+The client appends the Responses API resource path. A custom service must implement the contract used
+by the installed `openai-python` version.
 
 CLI budgets are hard limits:
 
@@ -125,10 +176,10 @@ CLI budgets are hard limits:
 | --- | ---: | --- |
 | `--max-iterations` | `4` | Maximum observe cycles. |
 | `--max-actions` | `4` | Maximum actor invocations. |
-| `--max-recoveries` | `2` | Maximum failed attempts allowed to feed another attempt. |
+| `--max-recoveries` | `2` | Failed attempts allowed to feed another attempt. |
 
 `--require TEXT` is repeatable. `--scripted-action TEXT` is also repeatable and replaces the live
-OpenAI actor, which makes experiments and CI reproducible.
+actor, which makes examples and CI reproducible.
 
 ## Architecture
 
@@ -150,14 +201,46 @@ VerifiedExitCondition -----------> success + stop event
 BudgetExitCondition -------------> bounded stop event
 ```
 
-One iteration has exactly one observation, one action, and one verification. A failed verification
-can produce one recovery instruction for the next observation. Exit conditions are checked before
-work begins and immediately after evidence is produced. The verified condition runs before budget
-conditions, so a candidate that succeeds on its final permitted attempt is still successful.
+One iteration has one observation, one action, and one verification. Failed verification may produce
+one recovery instruction for the next observation.
 
-The OpenAI adapter is intentionally at the edge. `LoopEngine` imports no OpenAI types and can run
-with any synchronous actor satisfying the protocol. Validators retain individual results so a
-passing aggregate is backed by inspectable evidence rather than a boolean with no provenance.
+Exit conditions run before work begins and after evidence is produced. Verification precedes budget
+checks, so a candidate that succeeds on its final permitted attempt still succeeds.
+
+The OpenAI adapter sits at the edge. `LoopEngine` imports no OpenAI types and accepts any synchronous
+actor that satisfies the protocol.
+
+Validators retain individual results. A passing aggregate therefore has inspectable evidence rather
+than a boolean without provenance.
+
+## Open research questions
+
+These are working questions, not claims that the prototype has solved them.
+
+### How can verification avoid circularity?
+
+When actor and verifier share a model or data source, correlated errors can create false confidence.
+What evidence mix reduces false passes without making every task prohibitively expensive?
+
+### When does recovery become thrashing?
+
+Repeated feedback may refine a candidate or trap it in a local strategy. Which trace signals should
+trigger another revision, a strategy change, escalation, or an early stop?
+
+### How should budgets move between attempts?
+
+Fixed limits are simple but may spend too much on weak paths or too little near success. Can a policy
+allocate time, tokens, and cost by expected evidence gain while preserving hard ceilings?
+
+### How should conflicting evidence terminate a loop?
+
+Validators may disagree, arrive late, or have different authority. What composition rules preserve
+safety while allowing partial success and explicit human approval?
+
+### Which comparisons survive stochastic models?
+
+Model versions and environments drift. What trace schema, task fixtures, and replay boundaries let us
+compare loop policies without confusing policy quality with model or infrastructure changes?
 
 ## Repository tree
 
@@ -165,9 +248,9 @@ passing aggregate is backed by inspectable evidence rather than a boolean with n
 .
 ├── docs/
 │   ├── README.md              # documentation map
-│   ├── concepts/README.md     # vocabulary and invariants placeholder
-│   └── roadmap/README.md      # staged implementation roadmap
-├── evals/README.md            # evaluation suites and metrics placeholder
+│   ├── concepts/README.md     # vocabulary and invariants
+│   └── roadmap/README.md      # staged research roadmap
+├── evals/README.md            # planned evaluation suites and metrics
 ├── examples/
 │   ├── README.md              # runnable example index
 │   └── basic.py               # deterministic recovery example
@@ -186,8 +269,8 @@ passing aggregate is backed by inspectable evidence rather than a boolean with n
 └── tests/                     # offline unit and CLI tests
 ```
 
-The placeholder directories are intentional roadmap surfaces: future work should first state its
-contract and evaluation plan there, then add implementation code.
+The placeholder directories are deliberate. New work should state its contract and evaluation plan
+before it expands the reference implementation.
 
 ## Roadmap
 
@@ -197,11 +280,11 @@ contract and evaluation plan there, then add implementation code.
 - [x] Explicit iteration, action, and recovery budgets.
 - [x] Composable validators and machine-readable exit reasons.
 - [x] OpenAI Responses API adapter with `.env` configuration.
-- [x] Offline deterministic actor, CLI, and tests.
+- [x] Offline deterministic actor, CLI, examples, and tests.
 
 ### Reliability — next
 
-- [ ] Async cancellation and wall-clock/token/cost budgets.
+- [ ] Async cancellation and wall-clock, token, and cost budgets.
 - [ ] Structured-output actions and schema validators.
 - [ ] Durable checkpoints and resumable event logs through harness adapters.
 - [ ] Exception classification with explicit retry ownership.
@@ -209,7 +292,7 @@ contract and evaluation plan there, then add implementation code.
 
 ### Measurement
 
-- [ ] Standard task fixtures, fault injection, and baseline policies.
+- [ ] Versioned task fixtures, fault injection, and baseline policies.
 - [ ] Success, cost, latency, recovery-efficiency, and false-pass metrics.
 - [ ] Trace replay and policy comparison without another model call.
 
@@ -217,19 +300,20 @@ contract and evaluation plan there, then add implementation code.
 
 - [ ] Intent-contract compiler input.
 - [ ] Graph-node adapter with isolated state and failure boundaries.
-- [ ] Emergence-safe policy hooks that cannot relax evidence or authority constraints.
+- [ ] Emergence-safe hooks that cannot relax evidence or authority constraints.
 
-See [docs/roadmap/README.md](docs/roadmap/README.md) for milestones and acceptance gates.
+See [docs/roadmap/README.md](docs/roadmap/README.md) for milestone acceptance gates.
 
 ## Status and guarantees
 
-The repository currently guarantees deterministic budget accounting, explicit terminal reasons,
-and offline-testable policy composition for the synchronous reference path. It does not guarantee
-the correctness of arbitrary model output; correctness is only as strong as the configured
-validators. The live OpenAI path requires user-provided credentials and is not exercised in tests.
+The synchronous reference path currently provides deterministic budget accounting, explicit terminal
+reasons, and offline-testable policy composition.
 
-This is an early experimental project. APIs may change while the vocabulary, invariants, and evals
-are being established.
+It does not guarantee arbitrary model output. A result is only as trustworthy as its validators and
+their evidence. Live OpenAI calls require user credentials and are not part of the offline test suite.
+
+This is an early research prototype. APIs may change as its vocabulary, invariants, and evaluations
+become sharper.
 
 ## License
 
