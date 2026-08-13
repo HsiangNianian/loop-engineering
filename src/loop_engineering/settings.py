@@ -1,6 +1,6 @@
 """Environment-backed runtime configuration."""
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,16 @@ class Settings(BaseSettings):
 
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-5.6"
+    openai_baseurl: str | None = None
+
+    @field_validator("openai_baseurl", mode="before")
+    @classmethod
+    def normalize_openai_baseurl(cls, value: object) -> object:
+        """Treat an empty optional endpoint like an unset endpoint."""
+        if isinstance(value, str):
+            normalized = value.strip()
+            return normalized or None
+        return value
 
     def require_api_key(self) -> str:
         value = self.openai_api_key.get_secret_value() if self.openai_api_key else ""

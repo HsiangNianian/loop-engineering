@@ -106,6 +106,18 @@ Configuration is loaded by `pydantic-settings` from environment variables and an
 | --- | --- | --- | --- |
 | `OPENAI_API_KEY` | For live calls | none | Credential passed to the OpenAI client. |
 | `OPENAI_MODEL` | No | `gpt-5.6` | Model passed to the Responses API. |
+| `OPENAI_BASEURL` | No | none | Custom base URL for an OpenAI-compatible Responses API. |
+
+The base URL variable is spelled exactly `OPENAI_BASEURL` (without an underscore before `URL`). An
+unset, empty, or whitespace-only value is normalized to `None`, so the OpenAI SDK keeps its default
+endpoint. To route live calls through a compatible gateway, set for example:
+
+```dotenv
+OPENAI_BASEURL=https://gateway.example.com/v1
+```
+
+The client appends the Responses API resource path to this base URL. The configured service must
+therefore implement the OpenAI Responses API contract used by `openai-python`.
 
 CLI budgets are hard limits:
 

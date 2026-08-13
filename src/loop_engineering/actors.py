@@ -26,7 +26,10 @@ class OpenAIResponsesActor:
 
     def __init__(self, settings: Settings, client: OpenAIClient | None = None) -> None:
         self._settings = settings
-        self._client = client or OpenAI(api_key=settings.require_api_key())
+        self._client = client or OpenAI(
+            api_key=settings.require_api_key(),
+            base_url=settings.openai_baseurl,
+        )
 
     def act(self, observation: Observation) -> Action:
         feedback = observation.recovery_guidance or "No prior verification feedback."
